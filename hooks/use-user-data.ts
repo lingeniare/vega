@@ -37,16 +37,18 @@ export function useUserData() {
     proSource: userData?.proSource || 'none',
     subscriptionStatus: userData?.subscriptionStatus || 'none',
 
-    // Polar subscription details
-    polarSubscription: userData?.polarSubscription,
-    hasPolarSubscription: Boolean(userData?.polarSubscription),
+    // Robokassa subscription details
+    robokassaSubscription: userData?.robokassaSubscription,
+    hasRobokassaSubscription: Boolean(userData?.robokassaSubscription),
 
-    // DodoPayments details
-    dodoPayments: userData?.dodoPayments,
-    hasDodoPayments: Boolean(userData?.dodoPayments?.hasPayments),
-    dodoExpiresAt: userData?.dodoPayments?.expiresAt,
-    isDodoExpiring: Boolean(userData?.dodoPayments?.isExpiringSoon),
-    isDodoExpired: Boolean(userData?.dodoPayments?.isExpired),
+    // Legacy fields for backward compatibility
+    polarSubscription: userData?.robokassaSubscription, // Map to robokassa for compatibility
+    hasPolarSubscription: Boolean(userData?.robokassaSubscription),
+    dodoPayments: null, // Deprecated
+    hasDodoPayments: false, // Deprecated
+    dodoExpiresAt: userData?.robokassaSubscription?.currentPeriodEnd,
+    isDodoExpiring: Boolean(userData?.robokassaSubscription?.status === 'active' && userData?.robokassaSubscription?.currentPeriodEnd && new Date(userData.robokassaSubscription.currentPeriodEnd).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000),
+    isDodoExpired: Boolean(userData?.robokassaSubscription?.status === 'canceled' || userData?.robokassaSubscription?.status === 'expired'),
 
     // Payment history
     paymentHistory: userData?.paymentHistory || [],
@@ -62,28 +64,28 @@ export function useUserData() {
     hasNoSubscription: userData?.subscriptionStatus === 'none',
 
     // Legacy compatibility helpers
-    subscriptionData: userData?.polarSubscription
+    subscriptionData: userData?.robokassaSubscription
       ? {
           hasSubscription: true,
-          subscription: userData.polarSubscription,
+          subscription: userData.robokassaSubscription,
         }
       : { hasSubscription: false },
 
-    // Map dodoPayments to legacy dodoProStatus structure for settings dialog
-    dodoProStatus: userData?.dodoPayments
+    // Map robokassaSubscription to legacy dodoProStatus structure for settings dialog
+    dodoProStatus: userData?.robokassaSubscription
       ? {
-          isProUser: userData.proSource === 'dodo' && userData.isProUser,
-          hasPayments: userData.dodoPayments.hasPayments,
-          expiresAt: userData.dodoPayments.expiresAt,
-          mostRecentPayment: userData.dodoPayments.mostRecentPayment,
-          daysUntilExpiration: userData.dodoPayments.daysUntilExpiration,
-          isExpired: userData.dodoPayments.isExpired,
-          isExpiringSoon: userData.dodoPayments.isExpiringSoon,
+          isProUser: userData.proSource === 'robokassa' && userData.isProUser,
+          hasPayments: true,
+          expiresAt: userData.robokassaSubscription.currentPeriodEnd,
+          mostRecentPayment: null, // Not available in robokassa structure
+          daysUntilExpiration: Math.ceil((new Date(userData.robokassaSubscription.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+          isExpired: userData.robokassaSubscription.status === 'canceled' || userData.robokassaSubscription.status === 'expired',
+          isExpiringSoon: userData.robokassaSubscription.status === 'active' && new Date(userData.robokassaSubscription.currentPeriodEnd).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000,
           source: userData.proSource,
         }
       : null,
 
-    expiresAt: userData?.dodoPayments?.expiresAt,
+    expiresAt: userData?.robokassaSubscription?.currentPeriodEnd,
   };
 }
 

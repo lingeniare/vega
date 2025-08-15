@@ -100,21 +100,15 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
           (discountConfig.percentage || discountConfig.inrPrice);
   };
 
-  const handleCheckout = async (productId: string, slug: string, paymentMethod?: 'dodo' | 'polar') => {
+  const handleCheckout = async (planType: 'pro' | 'ultra' = 'pro') => {
     if (!user) {
       router.push('/sign-up');
       return;
     }
 
     try {
-      if (paymentMethod === 'dodo') {
-        router.push('/checkout');
-      } else {
-        await authClient.checkout({
-          products: [productId],
-          slug: slug,
-        });
-      }
+      // Redirect to Robokassa checkout page
+      router.push(`/checkout?plan=${planType}`);
     } catch (error) {
       console.error('Checkout failed:', error);
       toast.error('Something went wrong. Please try again.');
@@ -122,16 +116,14 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
   };
 
   const handleManageSubscription = async () => {
+    if (!user) return;
+
     try {
-      const proSource = getProAccessSource();
-      if (proSource === 'dodo') {
-        await betterauthClient.dodopayments.customer.portal();
-      } else {
-        await authClient.customer.portal();
-      }
+      // For Robokassa, redirect to settings page to manage subscription
+      router.push('/settings');
     } catch (error) {
-      console.error('Failed to open customer portal:', error);
-      toast.error('Failed to open subscription management');
+      console.error('Failed to manage subscription:', error);
+      toast.error('Something went wrong. Please try again.');
     }
   };
 
@@ -150,11 +142,9 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
     );
   };
 
-  // Check if user has any Pro status (Polar or DodoPayments)
+  // Check if user has any Pro status (Robokassa)
   const hasProAccess = () => {
-    const hasPolarSub = isCurrentPlan(STARTER_TIER);
-    const hasDodoProAccess = user?.isProUser && user?.proSource === 'dodo';
-    return hasPolarSub || hasDodoProAccess;
+    return user?.robokassaSubscription && user.robokassaSubscription.status === 'active';
   };
 
   // Check if user has Ultra access (placeholder for future implementation)
@@ -165,8 +155,7 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
 
   // Get the source of Pro access for display
   const getProAccessSource = () => {
-    if (isCurrentPlan(STARTER_TIER)) return 'polar';
-    if (user?.proSource === 'dodo') return 'dodo';
+    if (user?.robokassaSubscription && user.robokassaSubscription.status === 'active') return 'robokassa';
     return null;
   };
 
@@ -269,7 +258,7 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
               {/* Pricing Display */}
               {hasProAccess() ? (
                 // Show user's current pricing method
-                getProAccessSource() === 'dodo' ? (
+                getProAccessSource() === 'robokassa' ? (
                   <div className="flex items-baseline">
                     <span className="text-4xl font-light">₹{PRICING.PRO_MONTHLY_INR}</span>
                     <span className="text-muted-foreground ml-2">+GST</span>
@@ -364,44 +353,28 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
               {hasProAccess() ? (
                 <div className="space-y-4">
                   <Button className="w-full" onClick={handleManageSubscription}>
-                    {getProAccessSource() === 'dodo' ? 'Manage payment' : 'Manage subscription'}
+                    Manage subscription
                   </Button>
-                  {getProAccessSource() === 'polar' && subscriptionDetails.subscription && (
+                  {user?.robokassaSubscription && (
                     <p className="text-sm text-muted-foreground text-center">
-                      {subscriptionDetails.subscription.cancelAtPeriodEnd
-                        ? `Subscription expires ${formatDate(subscriptionDetails.subscription.currentPeriodEnd)}`
-                        : `Renews ${formatDate(subscriptionDetails.subscription.currentPeriodEnd)}`}
-                    </p>
-                  )}
-                  {getProAccessSource() === 'dodo' && user?.expiresAt && (
-                    <p className="text-sm text-muted-foreground text-center">
-                      Access expires {formatDate(new Date(user.expiresAt))}
+                      {user.robokassaSubscription.cancelAtPeriodEnd
+                        ? `Subscription expires ${formatDate(new Date(user.robokassaSubscription.currentPeriodEnd))}`
+                        : `Renews ${formatDate(new Date(user.robokassaSubscription.currentPeriodEnd))}`}
                     </p>
                   )}
                 </div>
               ) : !location.loading && location.isIndia ? (
                 !user ? (
-                  <Button className="w-full group" onClick={() => handleCheckout(STARTER_TIER, STARTER_SLUG)}>
+                  <Button className="w-full group" onClick={() => handleCheckout('pro')}>
                     Sign up for Pro
                     <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 ) : (
                   <div className="space-y-3">
-                    <Button className="w-full group" onClick={() => handleCheckout(STARTER_TIER, STARTER_SLUG, 'dodo')}>
-                      🇮🇳 Pay ₹{getDiscountedPrice(PRICING.PRO_MONTHLY_INR, true)}
+                    <Button className="w-full group" onClick={() => handleCheckout('pro')}>
+                      🇷🇺 Pay ₽{getDiscountedPrice(PRICING.PRO_MONTHLY_INR, true)}
                       <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full group"
-                      onClick={() => handleCheckout(STARTER_TIER, STARTER_SLUG, 'polar')}
-                    >
-                      💳 Subscribe ${getDiscountedPrice(PRICING.PRO_MONTHLY)}/month
-                      <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                    </Button>
-                    <p className="text-xs text-muted-foreground text-center">
-                      One-time payment vs Monthly subscription
-                    </p>
                     {shouldShowDiscount() && discountConfig.discountAvail && (
                       <p className="text-xs text-green-600 dark:text-green-400 text-center font-medium">
                         {discountConfig.discountAvail}
@@ -412,7 +385,7 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
               ) : (
                 <Button
                   className="w-full group"
-                  onClick={() => handleCheckout(STARTER_TIER, STARTER_SLUG)}
+                  onClick={() => handleCheckout('pro')}
                   disabled={location.loading}
                 >
                   {location.loading ? 'Loading...' : !user ? 'Sign up for Pro' : 'Upgrade to Pro'}
@@ -532,13 +505,17 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
 
               {hasUltraAccess() ? (
                 <div className="space-y-4">
-                  <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-50">
+                  <Button 
+                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-50"
+                    onClick={handleManageSubscription}
+                  >
                     Manage subscription
                   </Button>
                 </div>
               ) : (
                 <Button
                   className="w-full group bg-yellow-500 hover:bg-yellow-600 text-yellow-50"
+                  onClick={() => handleCheckout('ultra')}
                   disabled={location.loading}
                 >
                   {location.loading ? 'Loading...' : !user ? 'Sign up for Ultra' : 'Upgrade to Ultra'}

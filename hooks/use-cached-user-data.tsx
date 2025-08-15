@@ -56,16 +56,18 @@ export function useCachedUserData() {
     proSource,
     subscriptionStatus,
 
-    // Polar subscription details
-    polarSubscription: user?.polarSubscription,
-    hasPolarSubscription: Boolean(user?.polarSubscription),
+    // Robokassa subscription details
+    robokassaSubscription: user?.robokassaSubscription,
+    hasRobokassaSubscription: Boolean(user?.robokassaSubscription),
 
-    // DodoPayments details
-    dodoPayments: user?.dodoPayments,
-    hasDodoPayments: Boolean(user?.dodoPayments?.hasPayments),
-    dodoExpiresAt: user?.dodoPayments?.expiresAt,
-    isDodoExpiring: Boolean(user?.dodoPayments?.isExpiringSoon),
-    isDodoExpired: Boolean(user?.dodoPayments?.isExpired),
+    // Legacy fields for backward compatibility
+    polarSubscription: user?.robokassaSubscription, // Map to robokassa for compatibility
+    hasPolarSubscription: Boolean(user?.robokassaSubscription),
+    dodoPayments: null, // Deprecated
+    hasDodoPayments: false, // Deprecated
+    dodoExpiresAt: user?.robokassaSubscription?.currentPeriodEnd,
+    isDodoExpiring: Boolean(user?.robokassaSubscription?.status === 'active' && user?.robokassaSubscription?.currentPeriodEnd && new Date(user.robokassaSubscription.currentPeriodEnd).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000),
+    isDodoExpired: Boolean(user?.robokassaSubscription?.status === 'canceled' || user?.robokassaSubscription?.status === 'expired'),
 
     // Payment history
     paymentHistory: user?.paymentHistory || [],
@@ -81,28 +83,28 @@ export function useCachedUserData() {
     hasNoSubscription: user?.subscriptionStatus === 'none',
 
     // Legacy compatibility helpers
-    subscriptionData: user?.polarSubscription
+    subscriptionData: user?.robokassaSubscription
       ? {
           hasSubscription: true,
-          subscription: user.polarSubscription,
+          subscription: user.robokassaSubscription,
         }
       : { hasSubscription: false },
 
-    // Map dodoPayments to legacy dodoProStatus structure for settings dialog
-    dodoProStatus: user?.dodoPayments
+    // Map robokassaSubscription to legacy dodoProStatus structure for settings dialog
+    dodoProStatus: user?.robokassaSubscription
       ? {
-          isProUser: proSource === 'dodo' && isProUser,
-          hasPayments: user.dodoPayments.hasPayments,
-          expiresAt: user.dodoPayments.expiresAt,
-          mostRecentPayment: user.dodoPayments.mostRecentPayment,
-          daysUntilExpiration: user.dodoPayments.daysUntilExpiration,
-          isExpired: user.dodoPayments.isExpired,
-          isExpiringSoon: user.dodoPayments.isExpiringSoon,
+          isProUser: proSource === 'robokassa' && isProUser,
+          hasPayments: true,
+          expiresAt: user.robokassaSubscription.currentPeriodEnd,
+          mostRecentPayment: null, // Not available in robokassa structure
+          daysUntilExpiration: Math.ceil((new Date(user.robokassaSubscription.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+          isExpired: user.robokassaSubscription.status === 'canceled' || user.robokassaSubscription.status === 'expired',
+          isExpiringSoon: user.robokassaSubscription.status === 'active' && new Date(user.robokassaSubscription.currentPeriodEnd).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000,
           source: proSource,
         }
       : null,
 
-    expiresAt: user?.dodoPayments?.expiresAt,
+    expiresAt: user?.robokassaSubscription?.currentPeriodEnd,
 
     // Additional utilities
     isCached: Boolean(cachedUser),

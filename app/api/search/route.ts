@@ -206,10 +206,10 @@ export async function POST(req: Request) {
           canProceed: true,
           messageCount: messageCountResult.count,
           isProUser: false,
-          subscriptionData: user.polarSubscription
+          subscriptionData: user.robokassaSubscription
             ? {
               hasSubscription: true,
-              subscription: { ...user.polarSubscription, organizationId: null },
+              subscription: { ...user.robokassaSubscription, organizationId: null },
             }
             : { hasSubscription: false },
           shouldBypassLimits,
@@ -228,10 +228,10 @@ export async function POST(req: Request) {
         canProceed: true,
         messageCount: 0,
         isProUser: true,
-        subscriptionData: user.polarSubscription
+        subscriptionData: user.robokassaSubscription
           ? {
             hasSubscription: true,
-            subscription: { ...user.polarSubscription, organizationId: null },
+            subscription: { ...user.robokassaSubscription, organizationId: null },
           }
           : { hasSubscription: false },
         shouldBypassLimits: true,

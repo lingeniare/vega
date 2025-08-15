@@ -8,20 +8,17 @@ import {
   createSubscriptionKey,
   getProUserStatus,
   setProUserStatus,
-  getDodoPayments,
-  setDodoPayments,
-  getDodoPaymentExpiration,
-  setDodoPaymentExpiration,
-  getDodoProStatus,
-  setDodoProStatus,
 } from './performance-cache';
 
-// Configurable subscription duration for DodoPayments (in months)
-const DODO_SUBSCRIPTION_DURATION_MONTHS = parseInt(process.env.DODO_SUBSCRIPTION_DURATION_MONTHS || '1');
+// Robokassa subscription configuration
+const ROBOKASSA_CONFIG = {
+  gracePeriodDays: 3, // Grace period for failed payments
+  maxFailedPayments: 3, // Max failed payments before cancellation
+};
 
 export type SubscriptionDetails = {
   id: string;
-  productId: string;
+  planType: string;
   status: string;
   amount: number;
   currency: string;
@@ -30,7 +27,9 @@ export type SubscriptionDetails = {
   currentPeriodEnd: Date;
   cancelAtPeriodEnd: boolean;
   canceledAt: Date | null;
-  organizationId: string | null;
+  merchantLogin: string;
+  recurringId: string | null;
+  failedPaymentsCount: number;
 };
 
 export type SubscriptionDetailsResult = {
@@ -41,6 +40,8 @@ export type SubscriptionDetailsResult = {
 };
 
 // Helper function to check DodoPayments status for Indian users
+// DEPRECATED: Replaced by Robokassa integration
+/*
 async function checkDodoPaymentsProStatus(userId: string): Promise<boolean> {
   try {
     // Check cache first
@@ -92,32 +93,48 @@ async function checkDodoPaymentsProStatus(userId: string): Promise<boolean> {
     return false;
   }
 }
+*/
 
-// Combined function to check Pro status from both Polar and DodoPayments
-async function getComprehensiveProStatus(
+// Function to check Pro status from Robokassa subscriptions
+async function getRobokassaProStatus(
   userId: string,
-): Promise<{ isProUser: boolean; source: 'polar' | 'dodo' | 'none' }> {
+): Promise<{ isProUser: boolean; source: 'robokassa' | 'none'; planType?: string }> {
   try {
-    // Check Polar subscriptions first
+    // Check Robokassa subscriptions
     const userSubscriptions = await db.select().from(subscription).where(eq(subscription.userId, userId));
-    const activeSubscription = userSubscriptions.find((sub) => sub.status === 'active');
+    
+    // Find active subscription or subscription within grace period
+    const now = new Date();
+    const gracePeriod = new Date(now.getTime() - (ROBOKASSA_CONFIG.gracePeriodDays * 24 * 60 * 60 * 1000));
+    
+    const activeSubscription = userSubscriptions.find((sub) => {
+      if (sub.status === 'active') {
+        // Check if subscription is still valid
+        const periodEnd = new Date(sub.currentPeriodEnd);
+        return periodEnd > now;
+      }
+      
+      // Check for subscriptions in grace period
+      if (sub.status === 'expired' && sub.failedPaymentsCount < ROBOKASSA_CONFIG.maxFailedPayments) {
+        const periodEnd = new Date(sub.currentPeriodEnd);
+        return periodEnd > gracePeriod;
+      }
+      
+      return false;
+    });
 
     if (activeSubscription) {
-      console.log('🔥 Polar subscription found for user:', userId);
-      return { isProUser: true, source: 'polar' };
-    }
-
-    // If no Polar subscription, check DodoPayments
-    const hasDodoProStatus = await checkDodoPaymentsProStatus(userId);
-
-    if (hasDodoProStatus) {
-      console.log('🔥 DodoPayments subscription found for user:', userId);
-      return { isProUser: true, source: 'dodo' };
+      console.log('🔥 Robokassa subscription found for user:', userId, 'Plan:', activeSubscription.planType);
+      return { 
+        isProUser: true, 
+        source: 'robokassa',
+        planType: activeSubscription.planType
+      };
     }
 
     return { isProUser: false, source: 'none' };
   } catch (error) {
-    console.error('Error getting comprehensive pro status:', error);
+    console.error('Error getting Robokassa pro status:', error);
     return { isProUser: false, source: 'none' };
   }
 }
@@ -138,8 +155,8 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsResul
     const cacheKey = createSubscriptionKey(session.user.id);
     const cached = subscriptionCache.get(cacheKey);
     if (cached) {
-      // Update pro user status with comprehensive check
-      const proStatus = await getComprehensiveProStatus(session.user.id);
+      // Update pro user status with Robokassa check
+      const proStatus = await getRobokassaProStatus(session.user.id);
       setProUserStatus(session.user.id, proStatus.isProUser);
       return cached;
     }
@@ -147,18 +164,33 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsResul
     const userSubscriptions = await db.select().from(subscription).where(eq(subscription.userId, session.user.id));
 
     if (!userSubscriptions.length) {
-      // Even if no Polar subscriptions, check DodoPayments before returning
-      const proStatus = await getComprehensiveProStatus(session.user.id);
+      // No subscriptions found
+      const proStatus = await getRobokassaProStatus(session.user.id);
       const result = { hasSubscription: false };
       subscriptionCache.set(cacheKey, result);
-      // Cache comprehensive pro user status
       setProUserStatus(session.user.id, proStatus.isProUser);
       return result;
     }
 
-    // Get the most recent active subscription
+    // Get the most recent active subscription or subscription within grace period
+    const now = new Date();
+    const gracePeriod = new Date(now.getTime() - (ROBOKASSA_CONFIG.gracePeriodDays * 24 * 60 * 60 * 1000));
+    
     const activeSubscription = userSubscriptions
-      .filter((sub) => sub.status === 'active')
+      .filter((sub) => {
+        if (sub.status === 'active') {
+          const periodEnd = new Date(sub.currentPeriodEnd);
+          return periodEnd > now;
+        }
+        
+        // Include subscriptions in grace period
+        if (sub.status === 'expired' && sub.failedPaymentsCount < ROBOKASSA_CONFIG.maxFailedPayments) {
+          const periodEnd = new Date(sub.currentPeriodEnd);
+          return periodEnd > gracePeriod;
+        }
+        
+        return false;
+      })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
 
     if (!activeSubscription) {
@@ -176,7 +208,7 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsResul
           hasSubscription: true,
           subscription: {
             id: latestSubscription.id,
-            productId: latestSubscription.productId,
+            planType: latestSubscription.planType,
             status: latestSubscription.status,
             amount: latestSubscription.amount,
             currency: latestSubscription.currency,
@@ -185,7 +217,9 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsResul
             currentPeriodEnd: latestSubscription.currentPeriodEnd,
             cancelAtPeriodEnd: latestSubscription.cancelAtPeriodEnd,
             canceledAt: latestSubscription.canceledAt,
-            organizationId: null,
+            merchantLogin: latestSubscription.merchantLogin,
+            recurringId: latestSubscription.recurringId,
+            failedPaymentsCount: latestSubscription.failedPaymentsCount,
           },
           error: isCanceled
             ? 'Subscription has been canceled'
@@ -199,7 +233,7 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsResul
         };
         subscriptionCache.set(cacheKey, result);
         // Cache comprehensive pro user status (might have DodoPayments even if Polar is inactive)
-        const proStatus = await getComprehensiveProStatus(session.user.id);
+        const proStatus = await getRobokassaProStatus(session.user.id);
         setProUserStatus(session.user.id, proStatus.isProUser);
         return result;
       }
@@ -207,7 +241,7 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsResul
       const fallbackResult = { hasSubscription: false };
       subscriptionCache.set(cacheKey, fallbackResult);
       // Cache comprehensive pro user status
-      const proStatus = await getComprehensiveProStatus(session.user.id);
+      const proStatus = await getRobokassaProStatus(session.user.id);
       setProUserStatus(session.user.id, proStatus.isProUser);
       return fallbackResult;
     }
@@ -216,7 +250,7 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsResul
       hasSubscription: true,
       subscription: {
         id: activeSubscription.id,
-        productId: activeSubscription.productId,
+        planType: activeSubscription.planType,
         status: activeSubscription.status,
         amount: activeSubscription.amount,
         currency: activeSubscription.currency,
@@ -225,7 +259,9 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsResul
         currentPeriodEnd: activeSubscription.currentPeriodEnd,
         cancelAtPeriodEnd: activeSubscription.cancelAtPeriodEnd,
         canceledAt: activeSubscription.canceledAt,
-        organizationId: null,
+        merchantLogin: activeSubscription.merchantLogin,
+        recurringId: activeSubscription.recurringId,
+        failedPaymentsCount: activeSubscription.failedPaymentsCount,
       },
     };
     subscriptionCache.set(cacheKey, result);
@@ -242,7 +278,7 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsResul
   }
 }
 
-// Simple helper to check if user has an active subscription or successful payment
+// Simple helper to check if user has an active subscription
 export async function isUserSubscribed(): Promise<boolean> {
   try {
     const session = await auth.api.getSession({
@@ -253,8 +289,8 @@ export async function isUserSubscribed(): Promise<boolean> {
       return false;
     }
 
-    // Use comprehensive check for both Polar and DodoPayments
-    const proStatus = await getComprehensiveProStatus(session.user.id);
+    // Use Robokassa subscription check
+    const proStatus = await getRobokassaProStatus(session.user.id);
     return proStatus.isProUser;
   } catch (error) {
     console.error('Error checking user subscription status:', error);
@@ -278,21 +314,26 @@ export async function isUserProCached(): Promise<boolean> {
     return cached;
   }
 
-  // Fallback to comprehensive check (both Polar and DodoPayments)
-  const proStatus = await getComprehensiveProStatus(session.user.id);
+  // Fallback to Robokassa check
+  const proStatus = await getRobokassaProStatus(session.user.id);
   setProUserStatus(session.user.id, proStatus.isProUser);
   return proStatus.isProUser;
 }
 
 // Helper to check if user has access to a specific product/tier
+// DEPRECATED: Replaced by Robokassa integration
+/*
 export async function hasAccessToProduct(productId: string): Promise<boolean> {
   const result = await getSubscriptionDetails();
   return (
     result.hasSubscription && result.subscription?.status === 'active' && result.subscription?.productId === productId
   );
 }
+*/
 
 // Helper to get user's current subscription status
+// DEPRECATED: Replaced by Robokassa integration
+/*
 export async function getUserSubscriptionStatus(): Promise<'active' | 'canceled' | 'expired' | 'none'> {
   try {
     const session = await auth.api.getSession({
@@ -304,11 +345,11 @@ export async function getUserSubscriptionStatus(): Promise<'active' | 'canceled'
     }
 
     // First check comprehensive Pro status (includes DodoPayments)
-    const proStatus = await getComprehensiveProStatus(session.user.id);
+    const proStatus = await getRobokassaProStatus(session.user.id);
 
     if (proStatus.isProUser) {
-      if (proStatus.source === 'dodo') {
-        return 'active'; // DodoPayments successful payment = active
+      if (proStatus.source === 'robokassa') {
+        return 'active'; // Robokassa successful payment = active
       }
     }
 
@@ -337,8 +378,11 @@ export async function getUserSubscriptionStatus(): Promise<'active' | 'canceled'
     return 'none';
   }
 }
+*/
 
 // Helper to get DodoPayments expiration date
+// DEPRECATED: Replaced by Robokassa integration
+/*
 export async function getDodoPaymentsExpirationDate(): Promise<Date | null> {
   try {
     const session = await auth.api.getSession({
@@ -390,8 +434,11 @@ export async function getDodoPaymentsExpirationDate(): Promise<Date | null> {
     return null;
   }
 }
+*/
 
 // Export the comprehensive pro status function for UI components that need to know the source
+// DEPRECATED: Replaced by Robokassa integration
+/*
 export async function getProStatusWithSource(): Promise<{
   isProUser: boolean;
   source: 'polar' | 'dodo' | 'none';
@@ -406,10 +453,10 @@ export async function getProStatusWithSource(): Promise<{
       return { isProUser: false, source: 'none' };
     }
 
-    const proStatus = await getComprehensiveProStatus(session.user.id);
+    const proStatus = await getRobokassaProStatus(session.user.id);
 
-    // If Pro status comes from DodoPayments, include expiration date
-    if (proStatus.source === 'dodo' && proStatus.isProUser) {
+    // If Pro status comes from Robokassa, include expiration date
+    if (proStatus.source === 'robokassa' && proStatus.isProUser) {
       const expiresAt = await getDodoPaymentsExpirationDate();
       return { ...proStatus, expiresAt: expiresAt || undefined };
     }
@@ -420,3 +467,4 @@ export async function getProStatusWithSource(): Promise<{
     return { isProUser: false, source: 'none' };
   }
 }
+*/

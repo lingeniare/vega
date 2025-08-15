@@ -5,10 +5,11 @@ import { subscription, payment, user } from './db/schema';
 import { db } from './db';
 import { auth } from './auth';
 import { headers } from 'next/headers';
-import { getPaymentsByUserId, getDodoPaymentsExpirationInfo } from './db/queries';
-
-// Configurable subscription duration for DodoPayments (in months)
-const DODO_SUBSCRIPTION_DURATION_MONTHS = parseInt(process.env.DODO_SUBSCRIPTION_DURATION_MONTHS || '1');
+// Robokassa subscription configuration
+const ROBOKASSA_CONFIG = {
+  gracePeriodDays: 3, // Grace period for failed payments
+  maxFailedPayments: 3, // Max failed payments before cancellation
+};
 
 // Single comprehensive user data type
 export type ComprehensiveUserData = {
@@ -20,11 +21,11 @@ export type ComprehensiveUserData = {
   createdAt: Date;
   updatedAt: Date;
   isProUser: boolean;
-  proSource: 'polar' | 'dodo' | 'none';
+  proSource: 'robokassa' | 'none';
   subscriptionStatus: 'active' | 'canceled' | 'expired' | 'none';
-  polarSubscription?: {
+  robokassaSubscription?: {
     id: string;
-    productId: string;
+    planType: string;
     status: string;
     amount: number;
     currency: string;
@@ -33,14 +34,9 @@ export type ComprehensiveUserData = {
     currentPeriodEnd: Date;
     cancelAtPeriodEnd: boolean;
     canceledAt: Date | null;
-  };
-  dodoPayments?: {
-    hasPayments: boolean;
-    expiresAt: Date | null;
-    mostRecentPayment?: Date;
-    daysUntilExpiration?: number;
-    isExpired: boolean;
-    isExpiringSoon: boolean;
+    merchantLogin: string;
+    recurringId: string | null;
+    failedPaymentsCount: number;
   };
   // Payment history
   paymentHistory: any[];
@@ -95,69 +91,62 @@ export async function getComprehensiveUserData(): Promise<ComprehensiveUserData 
     }
 
     // Fetch all data in parallel - SINGLE DATABASE OPERATION SET
-    const [userData, polarSubscriptions, dodoPayments, dodoExpirationInfo] = await Promise.all([
+    const [userData, robokassaSubscriptions, robokassaPayments] = await Promise.all([
       // User basic data
       db
         .select()
         .from(user)
         .where(eq(user.id, userId))
         .then((rows) => rows[0]),
-      // Polar subscriptions
-      db.select().from(subscription).where(eq(subscription.userId, userId)).$withCache(),
-      // DodoPayments data
-      getPaymentsByUserId({ userId }),
-      // DodoPayments expiration info
-      getDodoPaymentsExpirationInfo({ userId }),
+      // Robokassa subscriptions
+      db.select().from(subscription).where(eq(subscription.userId, userId)),
+      // Robokassa payments
+      db.select().from(payment).where(eq(payment.userId, userId)),
     ]);
 
     if (!userData) {
       return null;
     }
 
-    // Process Polar subscription
-    const activePolarSubscription = polarSubscriptions
-      .filter((sub) => sub.status === 'active')
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-
-    // Process DodoPayments
-    const successfulDodoPayments = dodoPayments
-      .filter((p: any) => p.status === 'succeeded')
-      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    const hasDodoPayments = successfulDodoPayments.length > 0;
-    let isDodoActive = false;
-
-    if (hasDodoPayments) {
-      const mostRecentPayment = successfulDodoPayments[0];
-      const paymentDate = new Date(mostRecentPayment.createdAt);
-      const subscriptionEndDate = new Date(paymentDate);
-      subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + DODO_SUBSCRIPTION_DURATION_MONTHS);
-      isDodoActive = subscriptionEndDate > new Date();
-    }
+    // Process Robokassa subscription with grace period logic
+    const now = new Date();
+    const gracePeriod = new Date(now.getTime() - (ROBOKASSA_CONFIG.gracePeriodDays * 24 * 60 * 60 * 1000));
+    
+    const activeRobokassaSubscription = robokassaSubscriptions.find((sub) => {
+      if (sub.status === 'active') {
+        // Check if subscription is still valid
+        const periodEnd = new Date(sub.currentPeriodEnd);
+        return periodEnd > now;
+      }
+      
+      // Check for subscriptions in grace period
+      if (sub.status === 'expired' && sub.failedPaymentsCount < ROBOKASSA_CONFIG.maxFailedPayments) {
+        const periodEnd = new Date(sub.currentPeriodEnd);
+        return periodEnd > gracePeriod;
+      }
+      
+      return false;
+    });
 
     // Determine overall Pro status and source
     let isProUser = false;
-    let proSource: 'polar' | 'dodo' | 'none' = 'none';
+    let proSource: 'robokassa' | 'none' = 'none';
     let subscriptionStatus: 'active' | 'canceled' | 'expired' | 'none' = 'none';
 
-    if (activePolarSubscription) {
+    if (activeRobokassaSubscription) {
       isProUser = true;
-      proSource = 'polar';
-      subscriptionStatus = 'active';
-    } else if (isDodoActive) {
-      isProUser = true;
-      proSource = 'dodo';
+      proSource = 'robokassa';
       subscriptionStatus = 'active';
     } else {
-      // Check for expired/canceled Polar subscriptions
-      const latestPolarSubscription = polarSubscriptions.sort(
+      // Check for expired/canceled Robokassa subscriptions
+      const latestRobokassaSubscription = robokassaSubscriptions.sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       )[0];
 
-      if (latestPolarSubscription) {
+      if (latestRobokassaSubscription) {
         const now = new Date();
-        const isExpired = new Date(latestPolarSubscription.currentPeriodEnd) < now;
-        const isCanceled = latestPolarSubscription.status === 'canceled';
+        const isExpired = new Date(latestRobokassaSubscription.currentPeriodEnd) < now;
+        const isCanceled = latestRobokassaSubscription.status === 'canceled';
 
         if (isCanceled) {
           subscriptionStatus = 'canceled';
@@ -179,34 +168,25 @@ export async function getComprehensiveUserData(): Promise<ComprehensiveUserData 
       isProUser,
       proSource,
       subscriptionStatus,
-      paymentHistory: dodoPayments,
+      paymentHistory: robokassaPayments,
     };
 
-    // Add Polar subscription details if exists
-    if (activePolarSubscription) {
-      comprehensiveData.polarSubscription = {
-        id: activePolarSubscription.id,
-        productId: activePolarSubscription.productId,
-        status: activePolarSubscription.status,
-        amount: activePolarSubscription.amount,
-        currency: activePolarSubscription.currency,
-        recurringInterval: activePolarSubscription.recurringInterval,
-        currentPeriodStart: activePolarSubscription.currentPeriodStart,
-        currentPeriodEnd: activePolarSubscription.currentPeriodEnd,
-        cancelAtPeriodEnd: activePolarSubscription.cancelAtPeriodEnd,
-        canceledAt: activePolarSubscription.canceledAt,
-      };
-    }
-
-    // Always add DodoPayments details if user has any payments or dodo pro status
-    if (dodoPayments.length > 0 || proSource === 'dodo') {
-      comprehensiveData.dodoPayments = {
-        hasPayments: hasDodoPayments,
-        expiresAt: dodoExpirationInfo?.expirationDate || null,
-        mostRecentPayment: hasDodoPayments ? successfulDodoPayments[0].createdAt : undefined,
-        daysUntilExpiration: dodoExpirationInfo?.daysUntilExpiration,
-        isExpired: dodoExpirationInfo?.isExpired || false,
-        isExpiringSoon: dodoExpirationInfo?.isExpiringSoon || false,
+    // Add Robokassa subscription details if exists
+    if (activeRobokassaSubscription) {
+      comprehensiveData.robokassaSubscription = {
+        id: activeRobokassaSubscription.id,
+        planType: activeRobokassaSubscription.planType,
+        status: activeRobokassaSubscription.status,
+        amount: activeRobokassaSubscription.amount,
+        currency: activeRobokassaSubscription.currency,
+        recurringInterval: activeRobokassaSubscription.recurringInterval,
+        currentPeriodStart: activeRobokassaSubscription.currentPeriodStart,
+        currentPeriodEnd: activeRobokassaSubscription.currentPeriodEnd,
+        cancelAtPeriodEnd: activeRobokassaSubscription.cancelAtPeriodEnd,
+        canceledAt: activeRobokassaSubscription.canceledAt,
+        merchantLogin: activeRobokassaSubscription.merchantLogin,
+        recurringId: activeRobokassaSubscription.recurringId,
+        failedPaymentsCount: activeRobokassaSubscription.failedPaymentsCount,
       };
     }
 
@@ -231,7 +211,7 @@ export async function getUserSubscriptionStatus(): Promise<'active' | 'canceled'
   return userData?.subscriptionStatus || 'none';
 }
 
-export async function getProSource(): Promise<'polar' | 'dodo' | 'none'> {
+export async function getProSource(): Promise<'robokassa' | 'none'> {
   const userData = await getComprehensiveUserData();
   return userData?.proSource || 'none';
 }

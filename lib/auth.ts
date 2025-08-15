@@ -89,7 +89,7 @@ export const auth = betterAuth({
     magicLink({
       sendMagicLink: async ({ email, token, url }, request) => {
         // Настройка Nodemailer для SMTP
-        const transporter = nodemailer.createTransporter({
+        const transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST || 'localhost',
           port: parseInt(process.env.SMTP_PORT || '587'),
           secure: process.env.SMTP_SECURE === 'true',
@@ -168,62 +168,56 @@ export const auth = betterAuth({
 
                     if (!userExists) {
                       console.warn(
-                        `⚠️ User with email ${data.customer.email} not found, creating payment without user link`,
+                        `⚠️ User with email ${data.customer.email} not found, skipping payment creation`,
                       );
+                      return; // Skip payment creation if user not found
                     }
                   } catch (error) {
                     console.error('Error checking user existence:', error);
+                    return; // Skip payment creation on error
                   }
+                }
+
+                if (!validUserId) {
+                  console.warn('⚠️ No valid user ID found, skipping payment creation');
+                  return;
                 }
 
                 // Build payment data
                 const paymentData = {
                   id: data.payment_id,
+                  userId: validUserId,
+                  subscriptionId: data.subscription_id || null,
+                  merchantLogin: 'dodo_merchant', // DodoPayments merchant
+                  invoiceId: data.payment_id,
+                  signatureValue: null,
+                  amount: Math.round(data.total_amount * 100), // Convert to kopecks
+                  currency: data.currency || 'RUB',
+                  description: `DodoPayments payment ${data.payment_id}`,
+                  status: data.status === 'succeeded' ? 'success' : data.status === 'failed' ? 'failed' : 'pending',
+                  paymentType: data.subscription_id ? 'subscription' : 'one_time',
+                  paymentMethod: data.payment_method || null,
                   createdAt: new Date(data.created_at),
-                  updatedAt: data.updated_at ? new Date(data.updated_at) : null,
-                  brandId: data.brand_id || null,
-                  businessId: data.business_id || null,
-                  cardIssuingCountry: data.card_issuing_country || null,
-                  cardLastFour: data.card_last_four || null,
-                  cardNetwork: data.card_network || null,
-                  cardType: data.card_type || null,
-                  currency: data.currency,
-                  digitalProductsDelivered: data.digital_products_delivered || false,
-                  discountId: data.discount_id || null,
+                  updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),
+                  paidAt: data.status === 'succeeded' ? new Date(data.created_at) : null,
+                  robokassaData: data, // Store original DodoPayments data
                   errorCode: data.error_code || null,
                   errorMessage: data.error_message || null,
-                  paymentLink: data.payment_link || null,
-                  paymentMethod: data.payment_method || null,
-                  paymentMethodType: data.payment_method_type || null,
-                  settlementAmount: data.settlement_amount || null,
-                  settlementCurrency: data.settlement_currency || null,
-                  settlementTax: data.settlement_tax || null,
-                  status: data.status || null,
-                  subscriptionId: data.subscription_id || null,
-                  tax: data.tax || null,
-                  totalAmount: data.total_amount,
-                  // JSON fields
-                  billing: data.billing || null,
-                  customer: data.customer || null,
-                  disputes: data.disputes || null,
                   metadata: data.metadata || null,
-                  productCart: data.product_cart || null,
-                  refunds: data.refunds || null,
-                  userId: validUserId,
                 };
 
                 console.log('💾 Final payment data:', {
                   id: paymentData.id,
                   status: paymentData.status,
                   userId: paymentData.userId,
-                  totalAmount: paymentData.totalAmount,
+                  amount: paymentData.amount,
                   currency: paymentData.currency,
                 });
 
                 // Use Drizzle's onConflictDoUpdate for proper upsert
                 await db
                   .insert(payment)
-                  .values(paymentData)
+                  .values([paymentData])
                   .onConflictDoUpdate({
                     target: payment.id,
                     set: {
@@ -231,9 +225,6 @@ export const auth = betterAuth({
                       status: paymentData.status,
                       errorCode: paymentData.errorCode,
                       errorMessage: paymentData.errorMessage,
-                      digitalProductsDelivered: paymentData.digitalProductsDelivered,
-                      disputes: paymentData.disputes,
-                      refunds: paymentData.refunds,
                       metadata: paymentData.metadata,
                       userId: paymentData.userId,
                     },
@@ -356,30 +347,35 @@ export const auth = betterAuth({
                   });
                 }
                 // STEP 2: Build subscription data
+                // Skip subscription creation if user not found
+                if (!validUserId) {
+                  console.warn('⚠️ Skipping subscription creation - user not found');
+                  return;
+                }
+
                 const subscriptionData = {
                   id: data.id,
-                  createdAt: new Date(data.createdAt),
-                  modifiedAt: safeParseDate(data.modifiedAt),
+                  userId: validUserId,
+                  merchantLogin: 'polar_merchant', // Polar merchant
+                  recurringId: null,
+                  subscriptionId: data.id,
+                  planType: data.productId === process.env.NEXT_PUBLIC_STARTER_TIER ? 'pro' : 'ultra',
                   amount: data.amount,
                   currency: data.currency,
-                  recurringInterval: data.recurringInterval,
+                  recurringInterval: data.recurringInterval === 'month' ? 'monthly' : 'yearly',
                   status: data.status,
+                  createdAt: new Date(data.createdAt),
+                  updatedAt: safeParseDate(data.modifiedAt) || new Date(),
+                  startedAt: safeParseDate(data.startedAt) || new Date(),
                   currentPeriodStart: safeParseDate(data.currentPeriodStart) || new Date(),
                   currentPeriodEnd: safeParseDate(data.currentPeriodEnd) || new Date(),
                   cancelAtPeriodEnd: data.cancelAtPeriodEnd || false,
                   canceledAt: safeParseDate(data.canceledAt),
-                  startedAt: safeParseDate(data.startedAt) || new Date(),
-                  endsAt: safeParseDate(data.endsAt),
-                  endedAt: safeParseDate(data.endedAt),
-                  customerId: data.customerId,
-                  productId: data.productId,
-                  discountId: data.discountId || null,
-                  checkoutId: data.checkoutId || '',
-                  customerCancellationReason: data.customerCancellationReason || null,
-                  customerCancellationComment: data.customerCancellationComment || null,
+                  cancelReason: data.customerCancellationReason || null,
+                  lastPaymentId: null,
+                  nextPaymentDate: safeParseDate(data.currentPeriodEnd),
+                  failedPaymentsCount: 0,
                   metadata: data.metadata ? JSON.stringify(data.metadata) : null,
-                  customFieldData: data.customFieldData ? JSON.stringify(data.customFieldData) : null,
-                  userId: validUserId,
                 };
 
                 console.log('💾 Final subscription data:', {
@@ -392,11 +388,11 @@ export const auth = betterAuth({
                 // STEP 3: Use Drizzle's onConflictDoUpdate for proper upsert
                 await db
                   .insert(subscription)
-                  .values(subscriptionData)
+                  .values([subscriptionData])
                   .onConflictDoUpdate({
                     target: subscription.id,
                     set: {
-                      modifiedAt: subscriptionData.modifiedAt || new Date(),
+                      updatedAt: subscriptionData.updatedAt,
                       amount: subscriptionData.amount,
                       currency: subscriptionData.currency,
                       recurringInterval: subscriptionData.recurringInterval,
@@ -405,17 +401,8 @@ export const auth = betterAuth({
                       currentPeriodEnd: subscriptionData.currentPeriodEnd,
                       cancelAtPeriodEnd: subscriptionData.cancelAtPeriodEnd,
                       canceledAt: subscriptionData.canceledAt,
-                      startedAt: subscriptionData.startedAt,
-                      endsAt: subscriptionData.endsAt,
-                      endedAt: subscriptionData.endedAt,
-                      customerId: subscriptionData.customerId,
-                      productId: subscriptionData.productId,
-                      discountId: subscriptionData.discountId,
-                      checkoutId: subscriptionData.checkoutId,
-                      customerCancellationReason: subscriptionData.customerCancellationReason,
-                      customerCancellationComment: subscriptionData.customerCancellationComment,
-                      metadata: subscriptionData.metadata,
-                      customFieldData: subscriptionData.customFieldData,
+                      cancelReason: subscriptionData.cancelReason,
+                      nextPaymentDate: subscriptionData.nextPaymentDate,
                       userId: subscriptionData.userId,
                     },
                   });

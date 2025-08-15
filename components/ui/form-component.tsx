@@ -64,9 +64,8 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
     user,
   }) => {
     const isProUser = useMemo(
-    () =>
-      user?.isProUser || (subscriptionData?.hasSubscription && subscriptionData?.subscription?.status === 'active'),
-    [user?.isProUser, subscriptionData?.hasSubscription, subscriptionData?.subscription?.status],
+    () => user?.robokassaSubscription?.status === 'active',
+    [user?.robokassaSubscription?.status],
   );
 
   // TODO: Implement Ultra subscription logic when backend is ready
@@ -1004,8 +1003,8 @@ const FormComponent: React.FC<FormComponentProps> = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   const isProUser = useMemo(
-    () => user?.isProUser || (subscriptionData?.hasSubscription && subscriptionData?.subscription?.status === 'active'),
-    [user?.isProUser, subscriptionData?.hasSubscription, subscriptionData?.subscription?.status],
+    () => user?.robokassaSubscription?.status === 'active',
+    [user?.robokassaSubscription?.status],
   );
 
   const isProcessing = useMemo(() => status === 'submitted' || status === 'streaming', [status]);
@@ -1961,9 +1960,8 @@ const FormComponent: React.FC<FormComponentProps> = ({
             onChange={handleFileChange}
             accept={getAcceptedFileTypes(
               selectedModel,
-              user?.isProUser ||
-                (subscriptionData?.hasSubscription && subscriptionData?.subscription?.status === 'active'),
-              false, // isUltraUser - TODO: implement when backend is ready
+              user?.robokassaSubscription?.status === 'active',
+              user?.robokassaSubscription?.planType === 'ultra' && user?.robokassaSubscription?.status === 'active'
             )}
             tabIndex={-1}
           />
@@ -1975,9 +1973,8 @@ const FormComponent: React.FC<FormComponentProps> = ({
             onChange={handleFileChange}
             accept={getAcceptedFileTypes(
               selectedModel,
-              user?.isProUser ||
-                (subscriptionData?.hasSubscription && subscriptionData?.subscription?.status === 'active'),
-              false, // isUltraUser - TODO: implement when backend is ready
+              user?.robokassaSubscription?.status === 'active',
+              user?.robokassaSubscription?.planType === 'ultra' && user?.robokassaSubscription?.status === 'active'
             )}
             tabIndex={-1}
           />

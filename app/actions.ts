@@ -1133,10 +1133,10 @@ export async function getSubDetails() {
 
   if (!userData) return { hasSubscription: false };
 
-  return userData.polarSubscription
+  return userData.robokassaSubscription
     ? {
         hasSubscription: true,
-        subscription: userData.polarSubscription,
+        subscription: userData.robokassaSubscription,
       }
     : { hasSubscription: false };
 }
@@ -1388,16 +1388,18 @@ export async function getDodoPaymentsProStatus() {
 
   if (!userData) return { isProUser: false, hasPayments: false };
 
-  const isDodoProUser = userData.proSource === 'dodo' && userData.isProUser;
+  const isRobokassaProUser = userData.proSource === 'robokassa' && userData.isProUser;
 
   return {
-    isProUser: isDodoProUser,
-    hasPayments: Boolean(userData.dodoPayments?.hasPayments),
-    expiresAt: userData.dodoPayments?.expiresAt,
+    isProUser: isRobokassaProUser,
+    hasPayments: Boolean(userData.robokassaSubscription),
+    expiresAt: userData.robokassaSubscription?.currentPeriodEnd,
     source: userData.proSource,
-    daysUntilExpiration: userData.dodoPayments?.daysUntilExpiration,
-    isExpired: userData.dodoPayments?.isExpired,
-    isExpiringSoon: userData.dodoPayments?.isExpiringSoon,
+    daysUntilExpiration: userData.robokassaSubscription?.currentPeriodEnd ? 
+      Math.ceil((new Date(userData.robokassaSubscription.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0,
+    isExpired: userData.robokassaSubscription?.status !== 'active',
+    isExpiringSoon: userData.robokassaSubscription?.currentPeriodEnd ? 
+      Math.ceil((new Date(userData.robokassaSubscription.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) <= 7 : false,
   };
 }
 
@@ -1408,7 +1410,7 @@ export async function getDodoExpirationDate() {
   const { getComprehensiveUserData } = await import('@/lib/user-data-server');
   const userData = await getComprehensiveUserData();
 
-  return userData?.dodoPayments?.expiresAt || null;
+  return userData?.robokassaSubscription?.currentPeriodEnd || null;
 }
 
 // Initialize QStash client

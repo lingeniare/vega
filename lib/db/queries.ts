@@ -591,7 +591,7 @@ export async function getSuccessfulPaymentsByUserId({ userId }: { userId: string
 export async function getTotalPaymentAmountByUserId({ userId }: { userId: string }) {
   try {
     const payments = await getSuccessfulPaymentsByUserId({ userId });
-    return payments.reduce((total, payment) => total + (payment.totalAmount || 0), 0);
+    return payments.reduce((total, payment) => total + (payment.amount || 0), 0);
   } catch (error) {
     console.error('Error getting total payment amount:', error);
     return 0;

@@ -89,31 +89,42 @@ export const stream = pgTable('stream', {
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 });
 
-// Subscription table for Polar webhook data
+// Robokassa subscription table for recurring payments
 export const subscription = pgTable('subscription', {
-  id: text('id').primaryKey(),
-  createdAt: timestamp('createdAt').notNull(),
-  modifiedAt: timestamp('modifiedAt'),
-  amount: integer('amount').notNull(),
-  currency: text('currency').notNull(),
-  recurringInterval: text('recurringInterval').notNull(),
-  status: text('status').notNull(),
+  id: text('id').primaryKey(), // Robokassa subscription ID
+  userId: text('userId').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  
+  // Robokassa specific fields
+  merchantLogin: text('merchantLogin').notNull(), // Merchant identifier
+  recurringId: text('recurringId'), // Robokassa recurring payment ID
+  subscriptionId: text('subscriptionId'), // Internal subscription identifier
+  
+  // Subscription details
+  planType: text('planType').notNull(), // 'pro', 'ultra'
+  amount: integer('amount').notNull(), // Amount in kopecks
+  currency: text('currency').notNull().default('RUB'),
+  recurringInterval: text('recurringInterval').notNull(), // 'monthly', 'yearly'
+  
+  // Status and dates
+  status: text('status').notNull(), // 'active', 'canceled', 'expired', 'pending'
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+  startedAt: timestamp('startedAt').notNull(),
   currentPeriodStart: timestamp('currentPeriodStart').notNull(),
   currentPeriodEnd: timestamp('currentPeriodEnd').notNull(),
+  
+  // Cancellation
   cancelAtPeriodEnd: boolean('cancelAtPeriodEnd').notNull().default(false),
   canceledAt: timestamp('canceledAt'),
-  startedAt: timestamp('startedAt').notNull(),
-  endsAt: timestamp('endsAt'),
-  endedAt: timestamp('endedAt'),
-  customerId: text('customerId').notNull(),
-  productId: text('productId').notNull(),
-  discountId: text('discountId'),
-  checkoutId: text('checkoutId').notNull(),
-  customerCancellationReason: text('customerCancellationReason'),
-  customerCancellationComment: text('customerCancellationComment'),
-  metadata: text('metadata'), // JSON string
-  customFieldData: text('customFieldData'), // JSON string
-  userId: text('userId').references(() => user.id),
+  cancelReason: text('cancelReason'),
+  
+  // Robokassa metadata
+  lastPaymentId: text('lastPaymentId'), // Last successful payment ID
+  nextPaymentDate: timestamp('nextPaymentDate'),
+  failedPaymentsCount: integer('failedPaymentsCount').notNull().default(0),
+  
+  // Additional data
+  metadata: json('metadata'), // Additional subscription data
 });
 
 // Extreme search usage tracking table
@@ -159,41 +170,41 @@ export const customInstructions = pgTable('custom_instructions', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-// Payment table for Dodo Payments webhook data
+// Robokassa payment table for transaction tracking
 export const payment = pgTable('payment', {
-  id: text('id').primaryKey(), // payment_id from webhook
-  createdAt: timestamp('created_at').notNull(),
-  updatedAt: timestamp('updated_at'),
-  brandId: text('brand_id'),
-  businessId: text('business_id'),
-  cardIssuingCountry: text('card_issuing_country'),
-  cardLastFour: text('card_last_four'),
-  cardNetwork: text('card_network'),
-  cardType: text('card_type'),
-  currency: text('currency').notNull(),
-  digitalProductsDelivered: boolean('digital_products_delivered').default(false),
-  discountId: text('discount_id'),
-  errorCode: text('error_code'),
-  errorMessage: text('error_message'),
-  paymentLink: text('payment_link'),
-  paymentMethod: text('payment_method'),
-  paymentMethodType: text('payment_method_type'),
-  settlementAmount: integer('settlement_amount'),
-  settlementCurrency: text('settlement_currency'),
-  settlementTax: integer('settlement_tax'),
-  status: text('status'),
-  subscriptionId: text('subscription_id'),
-  tax: integer('tax'),
-  totalAmount: integer('total_amount').notNull(),
-  // JSON fields for complex objects
-  billing: json('billing'), // Billing address object
-  customer: json('customer'), // Customer data object
-  disputes: json('disputes'), // Disputes array
-  metadata: json('metadata'), // Metadata object
-  productCart: json('product_cart'), // Product cart array
-  refunds: json('refunds'), // Refunds array
-  // Foreign key to user
-  userId: text('user_id').references(() => user.id),
+  id: text('id').primaryKey(), // Robokassa invoice ID
+  userId: text('userId').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  subscriptionId: text('subscriptionId').references(() => subscription.id),
+  
+  // Robokassa specific fields
+  merchantLogin: text('merchantLogin').notNull(), // Merchant identifier
+  invoiceId: text('invoiceId').notNull(), // Robokassa invoice ID
+  signatureValue: text('signatureValue'), // Payment signature
+  
+  // Payment details
+  amount: integer('amount').notNull(), // Amount in kopecks
+  currency: text('currency').notNull().default('RUB'),
+  description: text('description'), // Payment description
+  
+  // Payment status and type
+  status: text('status').notNull(), // 'pending', 'success', 'failed', 'canceled'
+  paymentType: text('paymentType').notNull(), // 'one_time', 'recurring', 'subscription'
+  paymentMethod: text('paymentMethod'), // Card, SBP, etc.
+  
+  // Timestamps
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+  paidAt: timestamp('paidAt'), // When payment was completed
+  
+  // Robokassa response data
+  robokassaData: json('robokassaData'), // Full Robokassa response
+  
+  // Error handling
+  errorCode: text('errorCode'),
+  errorMessage: text('errorMessage'),
+  
+  // Additional metadata
+  metadata: json('metadata'), // Custom payment metadata
 });
 
 // Lookout table for scheduled searches
