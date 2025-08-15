@@ -6,6 +6,7 @@ import { groq } from '@ai-sdk/groq';
 import { anthropic } from '@ai-sdk/anthropic';
 import { google } from '@ai-sdk/google';
 import { mistral } from '@ai-sdk/mistral';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 
 const middleware = extractReasoningMiddleware({
   tagName: 'think',
@@ -16,11 +17,21 @@ const huggingface = createOpenAI({
   apiKey: process.env.HF_TOKEN,
 });
 
+// OpenRouter провайдер с дополнительными заголовками для рейтинга
+const openrouter = createOpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  headers: {
+    'HTTP-Referer': 'vega.chat', // Для рейтинга на openrouter.ai
+    'X-Title': 'Vega AI', // Название сайта для рейтинга на openrouter.ai
+  },
+});
+
 export const scira = customProvider({
   languageModels: {
     'scira-default': huggingface.chat('zai-org/GLM-4.5-Air:fireworks-ai'),
     'scira-nano': groq('llama-3.3-70b-versatile'),
     'scira-grok-3': xai('grok-3-fast'),
+    'scira-grok-3-mini': xai('grok-3-mini'),
     'scira-grok-4': xai('grok-4'),
     'scira-gpt-oss-120': wrapLanguageModel({
       model: groq('openai/gpt-oss-120b'),
@@ -58,6 +69,13 @@ export const scira = customProvider({
     'scira-google-pro': google('gemini-2.5-pro'),
     'scira-anthropic': anthropic('claude-sonnet-4-20250514'),
     'scira-llama-4': groq('meta-llama/llama-4-maverick-17b-128e-instruct'),
+    // OpenRouter модели
+    'openrouter-qwen3-235b': openrouter('qwen/qwen3-235b-a22b-2507'),
+    'openrouter-kimi-k2': openrouter('moonshotai/kimi-k2'),
+    'openrouter-deepseek-r1': wrapLanguageModel({
+      model: openrouter('deepseek/deepseek-r1-0528'),
+      middleware, // Добавляем reasoning middleware для DeepSeek R1
+    }),
   },
 });
 
@@ -202,6 +220,21 @@ export const models: Model[] = [
     freeUnlimited: false,
     maxOutputTokens: 10000,
   },
+  {
+    value: 'openrouter-qwen3-235b',
+    label: 'Qwen3-235b',
+    description: "Qwen's advanced 235B parameter model via OpenRouter",
+    vision: true,
+    reasoning: true,
+    experimental: false,
+    category: 'Lite',
+    pdf: true,
+    pro: false,
+    ultra: false,
+    requiresAuth: false, // Доступна для неавторизованных пользователей
+    freeUnlimited: false,
+    maxOutputTokens: 32000,
+  },
 
   // Pro Models
   {
@@ -325,11 +358,12 @@ export const models: Model[] = [
     freeUnlimited: false,
     maxOutputTokens: 10000,
   },
+  // {  //   value: 'scira-glm',  //   label: 'GLM 4.5',  //   description: "Zhipu AI's advanced base LLM",  //   vision: false,  //   reasoning: true,  //   experimental: false,  //   category: 'Pro',  //   pdf: false,  //   pro: true,  //   ultra: false,  //   requiresAuth: true,  //   freeUnlimited: false,  //   maxOutputTokens: 13000,  // },
   {
-    value: 'scira-glm',
-    label: 'GLM 4.5',
-    description: "Zhipu AI's advanced base LLM",
-    vision: false,
+    value: 'scira-grok-3-mini',
+    label: 'Grok 3 Mini',
+    description: "xAI's efficient mini vision LLM",
+    vision: true,
     reasoning: true,
     experimental: false,
     category: 'Pro',
@@ -338,7 +372,37 @@ export const models: Model[] = [
     ultra: false,
     requiresAuth: true,
     freeUnlimited: false,
-    maxOutputTokens: 13000,
+    maxOutputTokens: 16000,
+  },
+  {
+    value: 'openrouter-kimi-k2',
+    label: 'Kimi K2',
+    description: "MoonShot AI's advanced conversational model via OpenRouter",
+    vision: true,
+    reasoning: false,
+    experimental: false,
+    category: 'Pro',
+    pdf: true,
+    pro: true,
+    ultra: false,
+    requiresAuth: true,
+    freeUnlimited: false,
+    maxOutputTokens: 128000,
+  },
+  {
+    value: 'openrouter-deepseek-r1',
+    label: 'DeepSeek R1',
+    description: "DeepSeek's advanced reasoning model via OpenRouter",
+    vision: true,
+    reasoning: true, // Поддерживает reasoning через middleware
+    experimental: false,
+    category: 'Pro',
+    pdf: true,
+    pro: true,
+    ultra: false,
+    requiresAuth: true,
+    freeUnlimited: false,
+    maxOutputTokens: 65536,
   },
   {
     value: 'scira-google-pro',
