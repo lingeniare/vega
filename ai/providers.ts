@@ -77,7 +77,7 @@ interface Model {
 }
 
 export const models: Model[] = [
-  // Free Unlimited Models (xAI)
+  // Lite Models
   {
     value: 'scira-default',
     label: 'Grok 3 Mini',
@@ -85,7 +85,7 @@ export const models: Model[] = [
     vision: false,
     reasoning: true,
     experimental: false,
-    category: 'Mini',
+    category: 'Lite',
     pdf: false,
     pro: false,
     requiresAuth: false,
@@ -113,7 +113,7 @@ export const models: Model[] = [
     vision: true,
     reasoning: true,
     experimental: false,
-    category: 'Pro',
+    category: 'Ultra',
     pdf: false,
     pro: true,
     requiresAuth: true,
@@ -121,7 +121,7 @@ export const models: Model[] = [
     maxOutputTokens: 16000,
   },
 
-  // Mini Models (Free/Paid)
+  // Lite Models (continued)
   {
     value: 'scira-mistral',
     label: 'Mistral Small',
@@ -129,7 +129,7 @@ export const models: Model[] = [
     vision: true,
     reasoning: false,
     experimental: false,
-    category: 'Mini',
+    category: 'Lite',
     pdf: true,
     pro: false,
     requiresAuth: true,
@@ -143,7 +143,7 @@ export const models: Model[] = [
     vision: true,
     reasoning: false,
     experimental: false,
-    category: 'Mini',
+    category: 'Lite',
     pdf: true,
     pro: false,
     requiresAuth: true,
@@ -157,7 +157,7 @@ export const models: Model[] = [
     vision: true,
     reasoning: true,
     experimental: false,
-    category: 'Mini',
+    category: 'Pro',
     pdf: true,
     pro: false,
     requiresAuth: true,
@@ -171,7 +171,7 @@ export const models: Model[] = [
     vision: false,
     reasoning: true,
     experimental: false,
-    category: 'Mini',
+    category: 'Lite',
     pdf: false,
     pro: false,
     requiresAuth: true,
@@ -185,7 +185,7 @@ export const models: Model[] = [
     vision: false,
     reasoning: true,
     experimental: false,
-    category: 'Pro',
+    category: 'Lite',
     pdf: false,
     pro: true,
     requiresAuth: true,
@@ -199,7 +199,7 @@ export const models: Model[] = [
     vision: false,
     reasoning: true,
     experimental: false,
-    category: 'Mini',
+    category: 'Lite',
     pdf: false,
     pro: false,
     requiresAuth: true,
@@ -213,7 +213,7 @@ export const models: Model[] = [
     vision: false,
     reasoning: false,
     experimental: false,
-    category: 'Mini',
+    category: 'Pro',
     pdf: false,
     pro: false,
     requiresAuth: true,
@@ -227,7 +227,7 @@ export const models: Model[] = [
     vision: true,
     reasoning: false,
     experimental: false,
-    category: 'Mini',
+    category: 'Lite',
     pdf: true,
     pro: false,
     requiresAuth: true,
@@ -243,7 +243,7 @@ export const models: Model[] = [
     vision: true,
     reasoning: true,
     experimental: false,
-    category: 'Pro',
+    category: 'Ultra',
     pdf: true,
     pro: true,
     requiresAuth: true,
@@ -252,12 +252,12 @@ export const models: Model[] = [
   },
   {
     value: 'scira-5-high',
-    label: 'GPT 5 (Max)',
+    label: 'GPT 5 Max',
     description: "OpenAI's latest flagship reasoning LLM",
     vision: true,
     reasoning: true,
     experimental: false,
-    category: 'Pro',
+    category: 'Ultra',
     pdf: true,
     pro: true,
     requiresAuth: true,
@@ -285,7 +285,7 @@ export const models: Model[] = [
     vision: true,
     reasoning: false,
     experimental: false,
-    category: 'Pro',
+    category: 'Ultra',
     pdf: true,
     pro: true,
     requiresAuth: true,
@@ -327,7 +327,7 @@ export const models: Model[] = [
     vision: false,
     reasoning: true,
     experimental: false,
-    category: 'Pro',
+    category: 'Lite',
     pdf: false,
     pro: true,
     requiresAuth: true,
@@ -383,7 +383,7 @@ export const models: Model[] = [
     vision: true,
     reasoning: false,
     experimental: false,
-    category: 'Pro',
+    category: 'Ultra',
     pdf: true,
     pro: true,
     requiresAuth: true,
@@ -391,21 +391,7 @@ export const models: Model[] = [
     maxOutputTokens: 10000,
   },
 
-  // Experimental Models
-  {
-    value: 'scira-llama-4',
-    label: 'Llama 4 Maverick',
-    description: "Meta's latest LLM",
-    vision: true,
-    reasoning: false,
-    experimental: true,
-    category: 'Experimental',
-    pdf: false,
-    pro: false,
-    requiresAuth: false,
-    freeUnlimited: false,
-    maxOutputTokens: 8000,
-  },
+  // Ultra Models (continued)
 ];
 
 // Helper functions for model access checks

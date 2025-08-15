@@ -150,7 +150,7 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
     );
 
     const orderedGroupEntries = useMemo(() => {
-      const groupOrder = ['Mini', 'Pro', 'Experimental'];
+      const groupOrder = ['Lite', 'Pro', 'Ultra'];
       return groupOrder
         .filter((category) => groupedModels[category] && groupedModels[category].length > 0)
         .map((category) => [category, groupedModels[category]] as const);
