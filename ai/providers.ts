@@ -76,6 +76,7 @@ export const scira = customProvider({
       model: openrouter('deepseek/deepseek-r1-0528'),
       middleware, // Добавляем reasoning middleware для DeepSeek R1
     }),
+    'openrouter-glm-4.5v': openrouter('z-ai/glm-4.5v'),
   },
 });
 
@@ -398,6 +399,21 @@ export const models: Model[] = [
     experimental: false,
     category: 'Pro',
     pdf: true,
+    pro: true,
+    ultra: false,
+    requiresAuth: true,
+    freeUnlimited: false,
+    maxOutputTokens: 65536,
+  },
+  {
+    value: 'openrouter-glm-4.5v',
+    label: 'GLM-4.5V',
+    description: "Z.AI's vision-language foundation model with MoE architecture via OpenRouter",
+    vision: true,
+    reasoning: true, // Поддерживает thinking mode для глубокого рассуждения
+    experimental: false,
+    category: 'Pro',
+    pdf: true, // Поддерживает OCR и парсинг документов
     pro: true,
     ultra: false,
     requiresAuth: true,
