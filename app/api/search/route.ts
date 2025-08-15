@@ -94,7 +94,7 @@ export async function POST(req: Request) {
   console.log('🔍 Search API endpoint hit');
 
   const requestStartTime = Date.now();
-  const { messages, model, group, timezone, id, selectedVisibilityType, isCustomInstructionsEnabled } =
+  const { messages, model, group, timezone, id, selectedVisibilityType, isCustomInstructionsEnabled, temperature } =
     await req.json();
   const { latitude, longitude } = geolocation(req);
 
@@ -322,26 +322,29 @@ export async function POST(req: Request) {
       const result = streamText({
         model: scira.languageModel(model),
         messages: convertToModelMessages(messages),
-        ...(model.includes('scira-qwen-32b')
-          ? {
-            temperature: 0.6,
-            topP: 0.95,
-            minP: 0,
-          }
-          : model.includes('scira-deepseek-v3')
+        // Используем пользовательскую температуру или значения по умолчанию для конкретных моделей
+        ...(temperature !== undefined
+          ? { temperature: Math.max(0, Math.min(1, temperature)) } // Ограничиваем температуру от 0 до 1
+          : model.includes('scira-qwen-32b')
             ? {
               temperature: 0.6,
-              topP: 1,
-              topK: 40,
+              topP: 0.95,
+              minP: 0,
             }
-            : model.includes('scira-qwen-235')
+            : model.includes('scira-deepseek-v3')
               ? {
-                temperature: 0.7,
-                topP: 0.8,
-                minP: 0,
-                presencePenalty: 1.5,
+                temperature: 0.6,
+                topP: 1,
+                topK: 40,
               }
-              : {}),
+              : model.includes('scira-qwen-235')
+                ? {
+                  temperature: 0.7,
+                  topP: 0.8,
+                  minP: 0,
+                  presencePenalty: 1.5,
+                }
+                : {}),
         stopWhen: stepCountIs(3),
         maxRetries: 10,
         ...(model.includes('scira-5')

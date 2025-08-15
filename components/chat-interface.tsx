@@ -71,6 +71,8 @@ const ChatInterface = memo(
       'scira-custom-instructions-enabled',
       true,
     );
+    // Добавляем состояние для температуры AI с значением по умолчанию 0.7
+    const [temperature, setTemperature] = useLocalStorage('scira-temperature', 0.7);
 
     // Get persisted values for dialog states
     const [persistedHasShownUpgradeDialog, setPersitedHasShownUpgradeDialog] = useLocalStorage(
@@ -218,11 +220,13 @@ const ChatInterface = memo(
     const selectedModelRef = useRef(selectedModel);
     const selectedGroupRef = useRef(selectedGroup);
     const isCustomInstructionsEnabledRef = useRef(isCustomInstructionsEnabled);
+    const temperatureRef = useRef(temperature);
 
     // Update refs whenever state changes - this ensures we always have current values
     selectedModelRef.current = selectedModel;
     selectedGroupRef.current = selectedGroup;
     isCustomInstructionsEnabledRef.current = isCustomInstructionsEnabled;
+    temperatureRef.current = temperature;
 
     const { messages, sendMessage, setMessages, regenerate, stop, status, error, resumeStream } = useChat({
       id: chatId,
@@ -238,6 +242,8 @@ const ChatInterface = memo(
               group: selectedGroupRef.current,
               timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
               isCustomInstructionsEnabled: isCustomInstructionsEnabledRef.current,
+              // Передаем температуру только для режима Chat
+              ...(selectedGroupRef.current === 'chat' ? { temperature: temperatureRef.current } : {}),
               ...(initialChatId ? { chat_id: initialChatId } : {}),
               ...body,
             },
@@ -715,6 +721,8 @@ const ChatInterface = memo(
                   lastSubmittedQueryRef={lastSubmittedQueryRef}
                   selectedGroup={selectedGroup}
                   setSelectedGroup={setSelectedGroup}
+                  temperature={temperature}
+                  setTemperature={setTemperature}
                   showExperimentalModels={messages.length === 0}
                   status={status}
                   setHasSubmitted={(hasSubmitted) => {

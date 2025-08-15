@@ -38,6 +38,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { UseChatHelpers } from '@ai-sdk/react';
 import { ChatMessage } from '@/lib/types';
+import { Slider } from '@/components/ui/slider';
+import { ThermometerIcon } from '@phosphor-icons/react';
 
 interface ModelSwitcherProps {
   selectedModel: string;
@@ -521,6 +523,83 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
 
 ModelSwitcher.displayName = 'ModelSwitcher';
 
+// Компонент для регулировки температуры AI
+interface TemperatureControlProps {
+  temperature: number;
+  setTemperature: (value: number) => void;
+  selectedGroup: SearchGroupId;
+  className?: string;
+}
+
+const TemperatureControl: React.FC<TemperatureControlProps> = React.memo(
+  ({ temperature, setTemperature, selectedGroup, className }) => {
+    const [open, setOpen] = useState(false);
+    
+    // Показываем только для режима Chat
+    if (selectedGroup !== 'chat') {
+      return null;
+    }
+
+    const handleTemperatureChange = (value: number[]) => {
+      setTemperature(value[0]);
+    };
+
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            className={cn(
+              "group rounded-full transition-colors duration-200 !size-8 border-0 !shadow-none hover:!bg-primary/30 hover:!border-0",
+              className
+            )}
+          >
+            <ThermometerIcon size={16} className="transition-colors" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-4" align="end">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium text-sm">AI Temperature</h4>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                {temperature.toFixed(1)}
+              </span>
+            </div>
+            
+            <div className="space-y-3">
+              <Slider
+                value={[temperature]}
+                onValueChange={handleTemperatureChange}
+                max={1}
+                min={0}
+                step={0.1}
+                className="w-full"
+              />
+              
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>0.0 (Focused)</span>
+                <span>1.0 (Creative)</span>
+              </div>
+              
+              <div className="text-xs text-muted-foreground leading-relaxed">
+                <p className="mb-1">
+                  <strong>Temperature</strong> controls AI creativity:
+                </p>
+                <p>• <strong>Low (0.0-0.3):</strong> Focused, consistent responses</p>
+                <p>• <strong>Medium (0.4-0.7):</strong> Balanced creativity</p>
+                <p>• <strong>High (0.8-1.0):</strong> Creative, varied responses</p>
+              </div>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+);
+
+TemperatureControl.displayName = 'TemperatureControl';
+
 interface Attachment {
   name: string;
   contentType?: string;
@@ -778,6 +857,8 @@ interface FormComponentProps {
   lastSubmittedQueryRef: React.MutableRefObject<string>;
   selectedGroup: SearchGroupId;
   setSelectedGroup: React.Dispatch<React.SetStateAction<SearchGroupId>>;
+  temperature: number;
+  setTemperature: React.Dispatch<React.SetStateAction<number>>;
   showExperimentalModels: boolean;
   status: UseChatHelpers<ChatMessage>['status'];
   setHasSubmitted: React.Dispatch<React.SetStateAction<boolean>>;
@@ -988,6 +1069,8 @@ const FormComponent: React.FC<FormComponentProps> = ({
   lastSubmittedQueryRef,
   selectedGroup,
   setSelectedGroup,
+  temperature,
+  setTemperature,
   messages,
   status,
   setHasSubmitted,
@@ -2122,6 +2205,13 @@ const FormComponent: React.FC<FormComponentProps> = ({
                     }}
                     subscriptionData={subscriptionData}
                     user={user}
+                  />
+                  
+                  {/* Кнопка регулировки температуры - показывается только для режима Chat */}
+                  <TemperatureControl
+                    temperature={temperature}
+                    setTemperature={setTemperature}
+                    selectedGroup={selectedGroup}
                   />
                 </div>
 
