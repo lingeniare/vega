@@ -3,5 +3,5 @@
 import AuthCard from '@/components/auth-card';
 
 export default function SignInPage() {
-  return <AuthCard title="Welcome back" description="Sign in to continue to Scira AI" mode="sign-in" />;
+  return <AuthCard title="Добро пожаловать" description="Войти или создать аккаунт на Vega" mode="sign-in" />;
 }

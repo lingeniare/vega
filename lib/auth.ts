@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
+import { magicLink } from 'better-auth/plugins';
 import {
   user,
   session,
@@ -30,6 +31,7 @@ import {
 import DodoPayments from 'dodopayments';
 import { eq } from 'drizzle-orm';
 import { invalidateUserCaches } from './performance-cache';
+import nodemailer from 'nodemailer';
 
 config({
   path: '.env.local',
@@ -79,24 +81,41 @@ export const auth = betterAuth({
       lookout,
     },
   }),
-  socialProviders: {
-    github: {
-      clientId: serverEnv.GITHUB_CLIENT_ID,
-      clientSecret: serverEnv.GITHUB_CLIENT_SECRET,
-    },
-    google: {
-      clientId: serverEnv.GOOGLE_CLIENT_ID,
-      clientSecret: serverEnv.GOOGLE_CLIENT_SECRET,
-    },
-    twitter: {
-      clientId: serverEnv.TWITTER_CLIENT_ID,
-      clientSecret: serverEnv.TWITTER_CLIENT_SECRET,
-    },
-  },
+  // Социальные провайдеры удалены - используем только Magic Link
   pluginRoutes: {
     autoNamespace: true,
   },
   plugins: [
+    magicLink({
+      sendMagicLink: async ({ email, token, url }, request) => {
+        // Настройка Nodemailer для SMTP
+        const transporter = nodemailer.createTransporter({
+          host: process.env.SMTP_HOST || 'localhost',
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: process.env.SMTP_SECURE === 'true',
+          auth: {
+            user: process.env.SMTP_USER || 'mail@vega.chat',
+            pass: process.env.SMTP_PASS || '',
+          },
+        });
+
+        // Отправка письма с Magic Link
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'mail@vega.chat',
+          to: email,
+          subject: 'Войти в Vega',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #333;">Добро пожаловать в Vega!</h2>
+              <p>Нажмите на ссылку ниже, чтобы войти в свой аккаунт:</p>
+              <a href="${url}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">Войти в Vega</a>
+              <p style="color: #666; font-size: 14px;">Если вы не запрашивали этот вход, просто проигнорируйте это письмо.</p>
+              <p style="color: #666; font-size: 14px;">Ссылка действительна в течение 10 минут.</p>
+            </div>
+          `,
+        });
+      },
+    }),
     dodopayments({
       client: dodoPayments,
       createCustomerOnSignUp: true,
