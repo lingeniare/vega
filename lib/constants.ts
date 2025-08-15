@@ -7,6 +7,8 @@ export const SEARCH_LIMITS = {
 export const PRICING = {
   PRO_MONTHLY: 15, // USD
   PRO_MONTHLY_INR: 1299, // INR for Indian users
+  ULTRA_MONTHLY: 30, // USD - Premium tier with advanced AI models
+  ULTRA_MONTHLY_INR: 2499, // INR for Indian users
 } as const;
 
 export const CURRENCIES = {

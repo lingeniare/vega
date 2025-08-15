@@ -64,10 +64,13 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
     user,
   }) => {
     const isProUser = useMemo(
-      () =>
-        user?.isProUser || (subscriptionData?.hasSubscription && subscriptionData?.subscription?.status === 'active'),
-      [user?.isProUser, subscriptionData?.hasSubscription, subscriptionData?.subscription?.status],
-    );
+    () =>
+      user?.isProUser || (subscriptionData?.hasSubscription && subscriptionData?.subscription?.status === 'active'),
+    [user?.isProUser, subscriptionData?.hasSubscription, subscriptionData?.subscription?.status],
+  );
+
+  // TODO: Implement Ultra subscription logic when backend is ready
+  const isUltraUser = useMemo(() => false, []);
 
     const isSubscriptionLoading = useMemo(() => user && !subscriptionData, [user, subscriptionData]);
 
@@ -1960,6 +1963,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
               selectedModel,
               user?.isProUser ||
                 (subscriptionData?.hasSubscription && subscriptionData?.subscription?.status === 'active'),
+              false, // isUltraUser - TODO: implement when backend is ready
             )}
             tabIndex={-1}
           />
@@ -1973,6 +1977,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
               selectedModel,
               user?.isProUser ||
                 (subscriptionData?.hasSubscription && subscriptionData?.subscription?.status === 'active'),
+              false, // isUltraUser - TODO: implement when backend is ready
             )}
             tabIndex={-1}
           />

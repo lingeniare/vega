@@ -157,6 +157,12 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
     return hasPolarSub || hasDodoProAccess;
   };
 
+  // Check if user has Ultra access (placeholder for future implementation)
+  const hasUltraAccess = () => {
+    // TODO: Implement Ultra subscription logic when backend is ready
+    return false;
+  };
+
   // Get the source of Pro access for display
   const getProAccessSource = () => {
     if (isCurrentPlan(STARTER_TIER)) return 'polar';
@@ -208,8 +214,8 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
       )}
 
       {/* Pricing Cards */}
-      <div className="max-w-4xl mx-auto px-6 pb-24">
-        <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+      <div className="max-w-6xl mx-auto px-6 pb-24">
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {/* Free Plan */}
           <Card className="relative">
             <CardHeader className="pb-4">
@@ -410,6 +416,132 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
                   disabled={location.loading}
                 >
                   {location.loading ? 'Loading...' : !user ? 'Sign up for Pro' : 'Upgrade to Pro'}
+                  {!location.loading && (
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  )}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Ultra Plan */}
+          <Card className="relative border-2 border-yellow-500">
+            {hasUltraAccess() && (
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                <Badge className="bg-yellow-500 text-yellow-50">Current plan</Badge>
+              </div>
+            )}
+            {!hasUltraAccess() && shouldShowDiscount() && (
+              <div className="absolute -top-3 right-4">
+                <Badge variant="green">{discountConfig.percentage}% OFF</Badge>
+              </div>
+            )}
+
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-medium">Scira Ultra</h3>
+                <Badge variant="outline" className="border-yellow-500 text-yellow-600">Premium</Badge>
+              </div>
+
+              {/* Pricing Display */}
+              {hasUltraAccess() ? (
+                <div className="flex items-baseline">
+                  <span className="text-4xl font-light">$30</span>
+                  <span className="text-muted-foreground ml-2">/month</span>
+                </div>
+              ) : !location.loading && location.isIndia ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* INR Option */}
+                    <div className="p-3 border rounded-lg bg-muted/50">
+                      <div className="space-y-1">
+                        {shouldShowDiscount() ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground line-through">
+                              ₹{PRICING.ULTRA_MONTHLY_INR}
+                            </span>
+                            <span className="text-xl font-light">
+                              ₹{getDiscountedPrice(PRICING.ULTRA_MONTHLY_INR, true)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xl font-light">₹{PRICING.ULTRA_MONTHLY_INR}</span>
+                        )}
+                        <div className="text-xs text-muted-foreground">+18% GST</div>
+                        <div className="text-xs">1 month access</div>
+                        <div className="text-xs text-muted-foreground">🇮🇳 UPI, Cards, QR</div>
+                      </div>
+                    </div>
+
+                    {/* USD Option */}
+                    <div className="p-3 border rounded-lg">
+                      <div className="space-y-1">
+                        {shouldShowDiscount() ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground line-through">${PRICING.ULTRA_MONTHLY}</span>
+                            <span className="text-xl font-light">${getDiscountedPrice(PRICING.ULTRA_MONTHLY)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xl font-light">${PRICING.ULTRA_MONTHLY}</span>
+                        )}
+                        <div className="text-xs text-muted-foreground">USD</div>
+                        <div className="text-xs">Monthly subscription</div>
+                        <div className="text-xs text-muted-foreground">💳 Card payment</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-baseline">
+                  {shouldShowDiscount() ? (
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-xl text-muted-foreground line-through">$30</span>
+                      <span className="text-4xl font-light">${getDiscountedPrice(PRICING.ULTRA_MONTHLY)}</span>
+                    </div>
+                  ) : (
+                    <span className="text-4xl font-light">$30</span>
+                  )}
+                  <span className="text-muted-foreground ml-2">/month</span>
+                </div>
+              )}
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              <ul className="space-y-3">
+                <li className="flex items-center">
+                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-3 flex-shrink-0"></div>
+                  Everything in Pro
+                </li>
+                <li className="flex items-center">
+                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-3 flex-shrink-0"></div>
+                  Advanced AI models (GPT-5, Grok-4)
+                </li>
+                <li className="flex items-center">
+                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-3 flex-shrink-0"></div>
+                  Enhanced reasoning capabilities
+                </li>
+                <li className="flex items-center">
+                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-3 flex-shrink-0"></div>
+                  Premium support
+                </li>
+                <li className="flex items-center">
+                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-3 flex-shrink-0"></div>
+                  Early access to new features
+                </li>
+              </ul>
+
+              {hasUltraAccess() ? (
+                <div className="space-y-4">
+                  <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-50">
+                    Manage subscription
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  className="w-full group bg-yellow-500 hover:bg-yellow-600 text-yellow-50"
+                  disabled={location.loading}
+                >
+                  {location.loading ? 'Loading...' : !user ? 'Sign up for Ultra' : 'Upgrade to Ultra'}
                   {!location.loading && (
                     <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                   )}
