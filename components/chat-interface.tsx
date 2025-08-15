@@ -206,7 +206,7 @@ const ChatInterface = memo(
         
         // Обновляем модель только если текущая модель - это старая модель по умолчанию
         // или если пользователь только что авторизовался/изменил подписку
-        if (selectedModel === 'scira-default' || selectedModel === 'scira-grok-3') {
+        if (selectedModel === 'scira-default' || selectedModel === 'scira-grok-3' || selectedModel === 'scira-5-nano') {
           setSelectedModel(defaultModel);
         }
       }

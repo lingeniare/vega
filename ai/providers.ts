@@ -459,8 +459,8 @@ export function getDefaultModel(user: any, isProUser: boolean, isUltraUser: bool
   if (isProUser) {
     return 'scira-5-mini'; // GPT 5 Mini для Pro пользователей
   }
-  // GLM 4.5 Air для неавторизованных и авторизованных free пользователей
-  return 'scira-default';
+  // GPT 5 Nano для неавторизованных и авторизованных free пользователей
+  return 'scira-5-nano';
 }
 
 // Legacy arrays for backward compatibility (deprecated - use helper functions instead)
