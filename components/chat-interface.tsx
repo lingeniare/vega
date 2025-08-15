@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Internal app imports
 import { suggestQuestions, updateChatVisibility } from '@/app/actions';
+import { getDefaultModel } from '@/ai/providers';
 
 // Component imports
 import { ChatDialogs } from '@/components/chat-dialogs';
@@ -195,6 +196,21 @@ const ChatInterface = memo(
         return () => clearTimeout(timer);
       }
     }, [user, chatState.hasShownAnnouncementDialog, setPersitedHasShownLookoutAnnouncement]);
+
+    // Автоматическое обновление модели по умолчанию в зависимости от статуса пользователя
+    useEffect(() => {
+      // Проверяем, что данные о пользователе загружены
+      if (!proStatusLoading && subscriptionData !== undefined) {
+        const isUltraUser = subscriptionData?.subscription?.plan === 'ultra' && subscriptionData?.subscription?.status === 'active';
+        const defaultModel = getDefaultModel(user, isUserPro, isUltraUser);
+        
+        // Обновляем модель только если текущая модель - это старая модель по умолчанию
+        // или если пользователь только что авторизовался/изменил подписку
+        if (selectedModel === 'scira-default' || selectedModel === 'scira-grok-3') {
+          setSelectedModel(defaultModel);
+        }
+      }
+    }, [user, isUserPro, subscriptionData, proStatusLoading, selectedModel, setSelectedModel]);
 
     type VisibilityType = 'public' | 'private';
 

@@ -18,7 +18,7 @@ const huggingface = createOpenAI({
 
 export const scira = customProvider({
   languageModels: {
-    'scira-default': xai('grok-3-mini'),
+    'scira-default': huggingface.chat('zai-org/GLM-4.5-Air:fireworks-ai'),
     'scira-nano': groq('llama-3.3-70b-versatile'),
     'scira-grok-3': xai('grok-3-fast'),
     'scira-grok-4': xai('grok-4'),
@@ -71,6 +71,7 @@ interface Model {
   category: string;
   pdf: boolean;
   pro: boolean;
+  ultra: boolean; // Новое поле для Ultra моделей
   requiresAuth: boolean;
   freeUnlimited: boolean;
   maxOutputTokens: number;
@@ -80,31 +81,18 @@ export const models: Model[] = [
   // Lite Models
   {
     value: 'scira-default',
-    label: 'Grok 3 Mini',
-    description: "xAI's most efficient reasoning LLM.",
+    label: 'GLM 4.5 Air',
+    description: "Zhipu AI's efficient base LLM - Default for free users",
     vision: false,
     reasoning: true,
     experimental: false,
     category: 'Lite',
     pdf: false,
     pro: false,
-    requiresAuth: false,
+    ultra: false,
+    requiresAuth: false, // Доступна для неавторизованных пользователей
     freeUnlimited: false,
-    maxOutputTokens: 16000,
-  },
-  {
-    value: 'scira-grok-3',
-    label: 'Grok 3',
-    description: "xAI's recent smartest LLM",
-    vision: false,
-    reasoning: false,
-    experimental: false,
-    category: 'Pro',
-    pdf: false,
-    pro: true,
-    requiresAuth: true,
-    freeUnlimited: false,
-    maxOutputTokens: 16000,
+    maxOutputTokens: 130000,
   },
   {
     value: 'scira-grok-4',
@@ -115,27 +103,14 @@ export const models: Model[] = [
     experimental: false,
     category: 'Ultra',
     pdf: false,
-    pro: true,
+    pro: false, // Изменено: не требует Pro, только Ultra
+    ultra: true, // Новое: требует Ultra подписку
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 16000,
   },
 
   // Lite Models (continued)
-  {
-    value: 'scira-mistral',
-    label: 'Mistral Small',
-    description: "Mistral's small LLM",
-    vision: true,
-    reasoning: false,
-    experimental: false,
-    category: 'Lite',
-    pdf: true,
-    pro: false,
-    requiresAuth: true,
-    freeUnlimited: false,
-    maxOutputTokens: 128000,
-  },
   {
     value: 'scira-5-nano',
     label: 'GPT 5 Nano',
@@ -146,6 +121,7 @@ export const models: Model[] = [
     category: 'Lite',
     pdf: true,
     pro: false,
+    ultra: false,
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 128000,
@@ -159,7 +135,8 @@ export const models: Model[] = [
     experimental: false,
     category: 'Pro',
     pdf: true,
-    pro: false,
+    pro: true, // Изменено: требует Pro подписку
+    ultra: false,
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 128000,
@@ -174,6 +151,7 @@ export const models: Model[] = [
     category: 'Lite',
     pdf: false,
     pro: false,
+    ultra: false,
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 40960,
@@ -187,25 +165,13 @@ export const models: Model[] = [
     experimental: false,
     category: 'Lite',
     pdf: false,
-    pro: true,
+    pro: false, // Изменено: доступна для Free авторизованных пользователей
+    ultra: false,
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 130000,
   },
-  {
-    value: 'scira-glm-air',
-    label: 'GLM 4.5 Air',
-    description: "Zhipu AI's efficient base LLM",
-    vision: false,
-    reasoning: true,
-    experimental: false,
-    category: 'Lite',
-    pdf: false,
-    pro: false,
-    requiresAuth: true,
-    freeUnlimited: false,
-    maxOutputTokens: 130000,
-  },
+
   {
     value: 'scira-deepseek-v3',
     label: 'DeepSeek V3 0324',
@@ -215,7 +181,8 @@ export const models: Model[] = [
     experimental: false,
     category: 'Pro',
     pdf: false,
-    pro: false,
+    pro: true, // Изменено: требует Pro подписку
+    ultra: false,
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 16000,
@@ -230,6 +197,7 @@ export const models: Model[] = [
     category: 'Lite',
     pdf: true,
     pro: false,
+    ultra: false,
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 10000,
@@ -245,7 +213,8 @@ export const models: Model[] = [
     experimental: false,
     category: 'Ultra',
     pdf: true,
-    pro: true,
+    pro: false, // Изменено: не требует Pro, только Ultra
+    ultra: true, // Новое: требует Ultra подписку
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 128000,
@@ -259,7 +228,8 @@ export const models: Model[] = [
     experimental: false,
     category: 'Ultra',
     pdf: true,
-    pro: true,
+    pro: false, // Изменено: не требует Pro, только Ultra
+    ultra: true, // Новое: требует Ultra подписку
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 128000,
@@ -274,6 +244,7 @@ export const models: Model[] = [
     category: 'Pro',
     pdf: false,
     pro: true,
+    ultra: false,
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 10000,
@@ -287,25 +258,13 @@ export const models: Model[] = [
     experimental: false,
     category: 'Ultra',
     pdf: true,
-    pro: true,
+    pro: false, // Изменено: не требует Pro, только Ultra
+    ultra: true, // Новое: требует Ultra подписку
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 8000,
   },
-  {
-    value: 'scira-mistral-medium',
-    label: 'Mistral Medium',
-    description: "Mistral's medium LLM",
-    vision: true,
-    reasoning: false,
-    experimental: false,
-    category: 'Pro',
-    pdf: true,
-    pro: true,
-    requiresAuth: true,
-    freeUnlimited: false,
-    maxOutputTokens: 8000,
-  },
+
   {
     value: 'scira-qwen-235',
     label: 'Qwen 3 235B A22B',
@@ -316,6 +275,7 @@ export const models: Model[] = [
     category: 'Pro',
     pdf: false,
     pro: true,
+    ultra: false,
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 100000,
@@ -329,8 +289,9 @@ export const models: Model[] = [
     experimental: false,
     category: 'Lite',
     pdf: false,
-    pro: true,
-    requiresAuth: true,
+    pro: false, // Изменено: доступна для неавторизованных пользователей
+    ultra: false,
+    requiresAuth: false, // Изменено: не требует авторизации
     freeUnlimited: false,
     maxOutputTokens: 8000,
   },
@@ -344,6 +305,7 @@ export const models: Model[] = [
     category: 'Pro',
     pdf: false,
     pro: true,
+    ultra: false,
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 8000,
@@ -358,6 +320,7 @@ export const models: Model[] = [
     category: 'Pro',
     pdf: true,
     pro: true,
+    ultra: false,
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 10000,
@@ -372,6 +335,7 @@ export const models: Model[] = [
     category: 'Pro',
     pdf: false,
     pro: true,
+    ultra: false,
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 13000,
@@ -385,7 +349,8 @@ export const models: Model[] = [
     experimental: false,
     category: 'Ultra',
     pdf: true,
-    pro: true,
+    pro: false, // Изменено: не требует Pro, только Ultra
+    ultra: true, // Новое: требует Ultra подписку
     requiresAuth: true,
     freeUnlimited: false,
     maxOutputTokens: 10000,
@@ -406,7 +371,13 @@ export function requiresAuthentication(modelValue: string): boolean {
 
 export function requiresProSubscription(modelValue: string): boolean {
   const model = getModelConfig(modelValue);
-  return model?.pro || false;
+  return Boolean(model?.pro);
+}
+
+// Новая функция для проверки Ultra подписки
+export function requiresUltraSubscription(modelValue: string): boolean {
+  const model = getModelConfig(modelValue);
+  return Boolean(model?.ultra);
 }
 
 export function isFreeUnlimited(modelValue: string): boolean {
@@ -440,20 +411,25 @@ export function getMaxOutputTokens(modelValue: string): number {
 }
 
 // Access control helper
-export function canUseModel(modelValue: string, user: any, isProUser: boolean): { canUse: boolean; reason?: string } {
+export function canUseModel(modelValue: string, user: any, isProUser: boolean, isUltraUser: boolean = false): { canUse: boolean; reason?: string } {
   const model = getModelConfig(modelValue);
 
   if (!model) {
     return { canUse: false, reason: 'Model not found' };
   }
 
-  // Check if model requires authentication
+  // Проверка требования авторизации
   if (model.requiresAuth && !user) {
     return { canUse: false, reason: 'authentication_required' };
   }
 
-  // Check if model requires Pro subscription
-  if (model.pro && !isProUser) {
+  // Проверка требования Ultra подписки
+  if (model.ultra && !isUltraUser) {
+    return { canUse: false, reason: 'ultra_subscription_required' };
+  }
+
+  // Проверка требования Pro подписки (только если не требуется Ultra)
+  if (model.pro && !model.ultra && !isProUser) {
     return { canUse: false, reason: 'pro_subscription_required' };
   }
 
@@ -475,7 +451,20 @@ export function getAcceptedFileTypes(modelValue: string, isProUser: boolean): st
   return 'image/*';
 }
 
+// Функция для получения модели по умолчанию в зависимости от типа пользователя
+export function getDefaultModel(user: any, isProUser: boolean, isUltraUser: boolean): string {
+  if (isUltraUser) {
+    return 'scira-grok-4'; // Grok 4 для Ultra пользователей
+  }
+  if (isProUser) {
+    return 'scira-5-mini'; // GPT 5 Mini для Pro пользователей
+  }
+  // GLM 4.5 Air для неавторизованных и авторизованных free пользователей
+  return 'scira-default';
+}
+
 // Legacy arrays for backward compatibility (deprecated - use helper functions instead)
 export const authRequiredModels = models.filter((m) => m.requiresAuth).map((m) => m.value);
 export const proRequiredModels = models.filter((m) => m.pro).map((m) => m.value);
+export const ultraRequiredModels = models.filter((m) => m.ultra).map((m) => m.value); // Новый массив для Ultra моделей
 export const freeUnlimitedModels = models.filter((m) => m.freeUnlimited).map((m) => m.value);
