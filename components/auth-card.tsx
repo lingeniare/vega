@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 interface AuthCardProps {
   title: string;
   description: string;
-  mode?: 'sign-in' | 'sign-up';
+  mode?: 'sign-in' | 'sign-in';
 }
 
 /**

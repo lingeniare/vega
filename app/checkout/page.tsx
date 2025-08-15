@@ -164,7 +164,7 @@ export default function CheckoutPage() {
 
   // Redirect if not authenticated
   if (!isPending && !session) {
-    router.push('/sign-up');
+    router.push('/sign-in');
     return null;
   }
 

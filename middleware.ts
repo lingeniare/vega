@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionCookie } from 'better-auth/cookies';
 
-const authRoutes = ['/sign-in', '/sign-up'];
+const authRoutes = ['/sign-in', '/sign-in'];
 const protectedRoutes = ['/lookout'];
 
 export async function middleware(request: NextRequest) {

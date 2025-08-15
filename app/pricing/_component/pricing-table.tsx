@@ -102,7 +102,7 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
 
   const handleCheckout = async (planType: 'pro' | 'ultra' = 'pro') => {
     if (!user) {
-      router.push('/sign-up');
+      router.push('/sign-in');
       return;
     }
 
